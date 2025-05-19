@@ -1,0 +1,30 @@
+{
+  "name": "tajulislamcse/quick-crud",
+  "description": "A Laravel CRUD generator package",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Tajul Islam",
+      "email": "tajulislam8028@gmail.com"
+    }
+  ],
+  "require": {
+    "php": "^8.0",
+    "illuminate/support": "^10.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "QuickCrud\\": "src/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "QuickCrud\\QuickCrudServiceProvider"
+      ]
+    }
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
+}
