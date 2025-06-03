@@ -7,16 +7,31 @@ use QuickCrud\Services\CrudGeneratorService;
 
 class GenerateCrudCommand extends Command
 {
-    protected $signature = 'make:quick-crud {name}';
-    protected $description = 'Generate CRUD files for a model';
+    // Use `*` to capture fields as an array
+   protected $signature = 'quick-crud:generate {name} {--fields=}';
 
-    public function handle()
-    {
-        $name = $this->argument('name');
+    protected $description = 'Generate CRUD operations for a model';
 
-        $service = new CrudGeneratorService();
-        $service->generate($name);
+   public function handle()
+{
+    $name = $this->argument('name');
+    $fieldsString = $this->option('fields');
 
-        $this->info("CRUD for {$name} generated successfully.");
+    // Validate and parse fields from comma-separated string
+    $fields = array_map('trim', explode(',', $fieldsString));
+
+    foreach ($fields as $field) {
+        if (!preg_match('/^\w+:\w+$/', $field)) {
+            $this->error("Invalid field format: $field. Use name:type format.");
+            return Command::FAILURE;
+        }
     }
+
+   (new CrudGeneratorService($name, $fields, $this))->generate();
+
+
+    $this->info("CRUD for {$name} generated successfully.");
+    return Command::SUCCESS;
+}
+
 }
