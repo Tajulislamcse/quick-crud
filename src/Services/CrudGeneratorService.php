@@ -244,19 +244,127 @@ EOD;
         $this->putFile(app_path("Http/Controllers/{$this->name}Controller.php"), $controllerTemplate);
     }
 
-    protected function generateViews()
-    {
-        $viewPath = resource_path("views/" . $this->viewPath());
-        // This mkdir is now technically redundant if putFile creates directories,
-        // but it doesn't harm anything.
-        if (!file_exists($viewPath)) {
-            mkdir($viewPath, 0755, true);
-        }
+protected function generateViews()
+{
+    $viewPath = resource_path("views/" . $this->viewPath());
 
-        foreach (["index", "create", "edit"] as $view) {
-            $this->putFile("$viewPath/$view.blade.php", "<!-- $view view -->");
+    if (!file_exists($viewPath)) {
+        mkdir($viewPath, 0755, true);
+    }
+
+    // Index and Edit remain stubbed
+    $this->putFile("$viewPath/index.blade.php", "<!-- index view -->");
+    $this->putFile("$viewPath/edit.blade.php", "<!-- edit view -->");
+
+    // Create view is generated with actual form fields
+    $this->generateCreateView($viewPath);
+}
+protected function generateCreateView($viewPath)
+{
+    $fieldsHtml = '';
+
+    foreach ($this->fields as $field) {
+        $parts = explode(':', $field);
+        $name = $parts[0];
+        $type = $parts[1] ?? 'string';
+        $options = $parts[2] ?? null;
+
+        $label = ucwords(str_replace('_', ' ', $name));
+        $required = "required";
+        $oldValue = "{{ old('$name') }}";
+
+        switch (strtolower($type)) {
+            case 'textarea':
+                $fieldsHtml .= <<<EOD
+<div class="form-group col-md-4 p-2">
+    <label>$label <span class="text-danger">*</span></label>
+    <textarea name="$name" class="form-control" rows="4" $required>$oldValue</textarea>
+    @error('$name') <small class="text-danger">{{ \$message }}</small> @enderror
+</div>
+
+EOD;
+                break;
+
+            case 'image':
+            case 'file':
+                $accept = $type === 'image' ? 'image/*' : '*';
+                $fieldsHtml .= <<<EOD
+<div class="form-group col-md-4 p-2">
+    <label>$label <span class="text-danger">*</span></label>
+    <input type="file" name="$name" class="form-control" accept="$accept" $required>
+    @error('$name') <small class="text-danger">{{ \$message }}</small> @enderror
+</div>
+
+EOD;
+                break;
+
+            case 'radio':
+                $radioOptions = '';
+                foreach (explode(',', $options) as $index => $value) {
+                    $id = "{$name}_{$value}";
+                    $checked = "{{ old('$name') == '$value' ? 'checked' : '' }}";
+                    $radioOptions .= <<<EOD
+<div class="custom-control custom-radio custom-control-inline">
+    <input type="radio" id="$id" name="$name" value="$value" class="custom-control-input" $checked $required>
+    <label class="custom-control-label" for="$id">{$value}</label>
+</div>
+EOD;
+                }
+
+                $fieldsHtml .= <<<EOD
+<div class="form-group col-md-4 p-2">
+    <label class="d-block mb-2">$label <span class="text-danger">*</span></label>
+    $radioOptions
+    @error('$name') <small class="text-danger d-block">{{ \$message }}</small> @enderror
+</div>
+
+EOD;
+                break;
+
+            default:
+                $inputType = in_array($type, ['email', 'number']) ? $type : 'text';
+                $fieldsHtml .= <<<EOD
+<div class="form-group col-md-4 p-2">
+    <label>$label <span class="text-danger">*</span></label>
+    <input type="$inputType" name="$name" class="form-control" value="$oldValue" $required>
+    @error('$name') <small class="text-danger">{{ \$message }}</small> @enderror
+</div>
+
+EOD;
         }
     }
+
+    $route = $this->routeName();
+
+    $createViewTemplate = <<<EOD
+@extends('admin.layouts.app')
+
+@section('content')
+<div class="col-lg-12 p-0">
+    <div class="card">
+        <div class="card-body">
+            <h4 class="header-title">{{ __('Add {$this->name}') }}</h4>
+
+            <form action="{{ route('{$route}.store') }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="row">
+$fieldsHtml
+                </div>
+
+                <div class="form-group mt-4">
+                    <button class="btn btn-primary"><i class="fa fa-save"></i> {{ __('Submit') }}</button>
+                    <a href="{{ route('{$route}.index') }}" class="btn btn-secondary">{{ __('Cancel') }}</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+@endsection
+EOD;
+
+    $this->putFile("$viewPath/create.blade.php", $createViewTemplate);
+}
+
 
     protected function generateRoute()
 {
